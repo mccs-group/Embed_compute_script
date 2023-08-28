@@ -3,6 +3,8 @@ import heapq
 from numpy import linalg
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
+from sklearn import preprocessing
+from sklearn import pipeline
 import time
 
 
@@ -86,10 +88,10 @@ def get_embed_vec(Phi_inv_L, K: int):
     return final_embed
 
 
-def compress_pca(embedding, dims=1, random_state=25):
-    pca_obj = PCA(n_components=dims, random_state=random_state)
+def compress_pca(embedding, dims = 1, random_state = 25):
+    compress_pipeline = pipeline.make_pipeline(preprocessing.StandardScaler(), PCA(n_components=dims, random_state=random_state))
 
-    return pca_obj.fit_transform(np.transpose(embedding))
+    return compress_pipeline.fit_transform(np.transpose(embedding))
 
 
 def get_microsoft_cfg_embed(adj_list, K: int, petr_factor: float):
