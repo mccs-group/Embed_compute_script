@@ -6,6 +6,7 @@ from sklearn.manifold import TSNE
 from sklearn import preprocessing
 from sklearn import pipeline
 import time
+import math
 
 
 def cfg_init_matrices(size: int, adj_list):
@@ -42,18 +43,19 @@ def get_Phi_inverse_L(P):
     pi = []
 
     for i, eigen_val in enumerate(val):
-        if abs(eigen_val.real - 1) < 1e-6 and (abs(eigen_val.imag) < 1e-6):
+        if abs(eigen_val.real - 1) < 1e-1 and (abs(eigen_val.imag) < 1e-6):
             pi = vec[:, i].real
             break
+
+    # if (pi == []):
+    #     print("Well, thats not good")
 
     pi = pi / np.sum(pi)
 
     Phi = np.diagflat(pi)
     Phi_inv = linalg.inv(Phi)
     identity_mat = np.identity(P.shape[0])
-    result = identity_mat - 0.5 * (
-        P + np.matmul(np.matmul(Phi_inv, np.transpose(P)), Phi)
-    )
+    result = identity_mat - 0.5 * (P + np.matmul(np.matmul(Phi_inv, np.transpose(P)), Phi))
     return result
 
 
@@ -95,7 +97,7 @@ def compress_pca(embedding, dims = 1, random_state = 25):
 
 
 def get_microsoft_cfg_embed(adj_list, K: int, petr_factor: float):
-    start = time.time()
+    # start = time.time()
 
     size = adj_list[0]
     if (K + 1) > adj_list[0]:
@@ -106,8 +108,8 @@ def get_microsoft_cfg_embed(adj_list, K: int, petr_factor: float):
     Phi_inv_L = get_Phi_inverse_L(P)
     vec = get_embed_vec(Phi_inv_L, K)
 
-    end = time.time()
-    print(f"delta: {end - start}")
+    # end = time.time()
+    # print(f"delta: {end - start}")
 
     return compress_pca(vec)
 
@@ -139,6 +141,10 @@ def get_svd_vec(proximity_mat, K: int):
     V = np.transpose(V_h)
     D_src = U[:, 0:K]
     D_dst = V[:, 0:K]
+
+    for i in range(K):
+        D_src[:, i] *= math.sqrt(abs(S[i]))
+        D_dst[:, i] *= math.sqrt(abs(S[i]))
 
     return D_src, D_dst
 
