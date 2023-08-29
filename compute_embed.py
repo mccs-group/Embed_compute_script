@@ -93,7 +93,11 @@ def get_embed_vec(Phi_inv_L, K: int):
 def compress_pca(embedding, dims = 1, random_state = 25):
     compress_pipeline = pipeline.make_pipeline(preprocessing.StandardScaler(), PCA(n_components=dims, random_state=random_state))
 
-    return compress_pipeline.fit_transform(np.transpose(embedding))
+    compressed = compress_pipeline.fit_transform(np.transpose(embedding))
+    if compressed[0] < 0:
+        compressed *= -1
+
+    return compressed
 
 
 def get_microsoft_cfg_embed(adj_list, K: int, petr_factor: float):
@@ -148,6 +152,16 @@ def get_svd_vec(proximity_mat, K: int):
 
     return D_src, D_dst
 
+def compress_D_vec(D_vec, ndims, compress_random_state):
+    D_vec = np.where(abs(D_vec) < 1e-10, 0, D_vec)
+    D_vec_compressed = []
+    if (np.allclose(D_vec, np.zeros(D_vec.shape))):
+        D_vec_compressed = np.zeros(D_vec.shape[1])
+    else:
+        D_vec_compressed = compress_pca(D_vec, ndims, compress_random_state)
+
+    return D_vec_compressed
+
 
 def get_flow2vec_embed(
     adj_list, K: int, beta=0.8, H=3, ndims=1, compress_random_state=25
@@ -156,14 +170,12 @@ def get_flow2vec_embed(
     def_use_matrix = get_val_flow_mat(size, adj_list[1:])
     prox_mat = get_proximity_mat(def_use_matrix, beta, H)
     D_src_emb, D_dst_emb = get_svd_vec(prox_mat, K)
-    D_src_emb = np.where(abs(D_src_emb) < 1e-10, 0, D_src_emb)
-    D_dst_emb = np.where(abs(D_dst_emb) < 1e-10, 0, D_dst_emb)
     # print("got from svd:")
     # print(list(D_src_emb))
     # print("and")
     # print(list(D_dst_emb))
-    D_src_compressed = compress_pca(D_src_emb, ndims, compress_random_state)
-    D_dst_compressed = compress_pca(D_dst_emb, ndims, compress_random_state)
+    D_src_compressed = compress_D_vec(D_src_emb, ndims, compress_random_state)
+    D_dst_compressed = compress_D_vec(D_dst_emb, ndims, compress_random_state)
     # print(D_src_compressed)
     # print(D_dst_compressed)
     return np.concatenate((D_src_compressed, D_dst_compressed), axis=None)
