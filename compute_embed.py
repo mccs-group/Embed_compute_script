@@ -166,7 +166,9 @@ def compress_D_vec(D_vec, ndims, compress_random_state):
 def get_flow2vec_embed(
     adj_list, K: int, beta=0.8, H=3, ndims=1, compress_random_state=25
 ):
-    size = max(K, adj_list[0])
+    max_stmt_id = -1 if len(adj_list[1:]) == 0 else max(adj_list[1:])
+    adj_mat_side = adj_list[0] if adj_list[0] > max_stmt_id else max_stmt_id + 1
+    size = max(K, adj_mat_side)
     def_use_matrix = get_val_flow_mat(size, adj_list[1:])
     prox_mat = get_proximity_mat(def_use_matrix, beta, H)
     D_src_emb, D_dst_emb = get_svd_vec(prox_mat, K)
