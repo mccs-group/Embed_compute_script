@@ -170,7 +170,7 @@ def get_flow2vec_embed(
     adj_mat_side = adj_list[0] if adj_list[0] > max_stmt_id else max_stmt_id + 1
     size = max(K, adj_mat_side)
     def_use_matrix = get_val_flow_mat(size, adj_list[1:])
-    prox_mat = get_proximity_mat(def_use_matrix, beta, H)
+    prox_mat = np.around(get_proximity_mat(def_use_matrix, beta, H), 3)
     D_src_emb, D_dst_emb = get_svd_vec(prox_mat, K)
     # print("got from svd:")
     # print(list(D_src_emb))
