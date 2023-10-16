@@ -157,21 +157,58 @@ def compress_D_vec(D_vec, ndims, compress_random_state):
     D_vec_compressed = []
     if (np.allclose(D_vec, np.zeros(D_vec.shape))):
         D_vec_compressed = np.zeros(D_vec.shape[1])
-    else:
-        D_vec_compressed = compress_pca(D_vec, ndims, compress_random_state)
+        return D_vec_compressed
+
+    while (True):
+        try:
+            D_vec_compressed = compress_pca(D_vec, ndims, compress_random_state)
+        except np.linalg.LinAlgError:
+            D_vec = D_vec[:-1]
+            continue
+        break
 
     return D_vec_compressed
 
-
-def get_flow2vec_embed(
-    adj_list, K: int, beta=0.8, H=3, ndims=1, compress_random_state=25
-):
+def get_correct_matrix_size(adj_list, K):
     max_stmt_id = -1 if len(adj_list[1:]) == 0 else max(adj_list[1:])
     adj_mat_side = adj_list[0] if adj_list[0] > max_stmt_id else max_stmt_id + 1
-    size = max(K, adj_mat_side)
-    def_use_matrix = get_val_flow_mat(size, adj_list[1:])
-    prox_mat = np.around(get_proximity_mat(def_use_matrix, beta, H), 3)
+    return max(K, adj_mat_side)
+
+def correct_D_vec(D_vec):
+    with np.nditer(D_vec, op_flags=['readwrite']) as it:
+        for x in it:
+            if (x == None) or np.isnan(x) or np.isclose(x, 0):
+                x = 0
+
+    return D_vec
+
+
+def get_D_vecs(adj_list, K, beta, H, D_vec_round):
+    mat_size = get_correct_matrix_size(adj_list, K)
+    def_use_matrix = get_val_flow_mat(mat_size, adj_list[1:])
+    prox_mat = np.around(get_proximity_mat(def_use_matrix, beta, H), H - 1)
     D_src_emb, D_dst_emb = get_svd_vec(prox_mat, K)
+
+    D_src_emb = np.around(correct_D_vec(D_src_emb), D_vec_round)
+    D_dst_emb = np.around(correct_D_vec(D_dst_emb), D_vec_round)
+
+    return D_src_emb, D_dst_emb
+
+def get_flow2vec_embed(
+    adj_list, K: int, beta=0.8, H=3, ndims=1, cutoff_coef=1/4, D_vec_round = 8, compress_random_state=25
+    ):
+
+    while (True):
+        try:
+            D_src_emb, D_dst_emb = get_D_vecs(adj_list, K, beta, H, D_vec_round)
+        except np.linalg.LinAlgError:
+            left_over = int(len(adj_list[1:]) * (1 - cutoff_coef))
+            if (left_over % 2 != 0):
+                left_over = left_over + 1
+            adj_list = adj_list[:left_over + 1]
+            continue
+        break
+
     # print("got from svd:")
     # print(list(D_src_emb))
     # print("and")
